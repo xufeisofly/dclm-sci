@@ -20,11 +20,11 @@ spec:
         command: ["/app/dclm-sci/start.sh"]
         args:
           - "--readable_name"
-          - "sci_test_3"
+          - "dclm_baseline_refinedweb_0512"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output"
           - "--config_path"
-          - "baselines/baselines_configs/sci.yaml"
+          - "baselines/baselines_configs/dclm_baseline_refinedweb.yaml"
           - "--source_name"
           - "cc"
           - "--overwrite"
