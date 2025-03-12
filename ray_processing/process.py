@@ -142,34 +142,38 @@ def get_task_item():
     if lock.acquire_or_block(timeout=3600):
         # 改写 tasks.json 文件，领取任务
         ret = ""
-        with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("rb") as f:
-            data = f.read()
-            ret = json.loads(data)
-        task_items = ret['tasks']
+        try:
+            with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("rb") as f:
+                data = f.read()
+                ret = json.loads(data)
+            task_items = ret['tasks']
 
-        for i, task_item in enumerate(task_items):
-            if task_item['worker'] is not None:
-                continue
-            asigned_task = task_item
-            task_items[i]['worker'] = {
-                'key': get_worker_key(),
-                'status': 'processing'
+            for i, task_item in enumerate(task_items):
+                if task_item['worker'] is not None:
+                    continue
+                asigned_task = task_item
+                task_items[i]['worker'] = {
+                    'key': get_worker_key(),
+                    'status': 'processing'
+                }
+                break
+
+            if asigned_task is None:
+                lock.release()
+                return None
+
+            new_data = {
+                'tasks': task_items,
             }
-            break
+            with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("w") as f:
+                f.write(json.dumps(new_data, indent=4))
 
-        if asigned_task is None:
+            lock.release()
+            return TaskItem(asigned_task['shard_dir'], asigned_task['file_range'])
+        except BaseException as e:
+            print(f"get task item failed: {e}")
             lock.release()
             return None
-
-        new_data = {
-            'tasks': task_items,
-        }
-        with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("w") as f:
-            f.write(json.dumps(new_data, indent=4))
-
-        lock.release()
-            
-        return TaskItem(asigned_task['shard_dir'], asigned_task['file_range'])
     else:
         print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
         return None
