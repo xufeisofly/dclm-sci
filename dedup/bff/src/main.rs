@@ -1824,12 +1824,15 @@ async fn get_task_inputs(tasks_file: &PathBuf) -> Result<Vec<PathBuf>, anyhow::E
                 let worker_opt = task.get("worker").cloned();
 
                 if let (Some(shard_dirs), Some(worker)) = (shard_dirs_opt, worker_opt) {
+                    print!("==== 1");
                     if worker.is_null() {
+                        print!("==== 2");
                         // 修改 worker 字段
                         task["worker"] = serde_json::Value::String("deduping".to_string());
                         // 遍历克隆出的 shard_dirs，将每个字符串转换为 PathBuf 并存入 ret
                         for shard_value in shard_dirs {
                             if let Some(shard_str) = shard_value.as_str() {
+                                print!("==== {shard_str}");
                                 ret.push(PathBuf::from(shard_str));
                             }
                         }
