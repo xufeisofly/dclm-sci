@@ -75,7 +75,7 @@ impl SimpleOSSLock {
     pub async fn acquire(&self) -> bool {
         let mut headers = HashMap::new();
         headers.insert("x-oss-forbid-overwrite".to_string(), "true".to_string());
-        let data: &[u8] = &self.lock_value;
+        let data: &[u8] = &self.lock_value.as_bytes();
         self.bucket
             .put_object(data, &self.path, headers, None)
             .await
