@@ -49,8 +49,6 @@ fn get_worker_key() -> String {
 pub struct SimpleOSSLock {
     bucket: OSS<'static>,
     path: String,
-    local_ip: String,
-    process_id: u32,
     lock_value: String,
 }
 
@@ -65,8 +63,6 @@ impl SimpleOSSLock {
         Ok(SimpleOSSLock {
             bucket,
             path,
-            local_ip,
-            process_id,
             lock_value,
         })
     }
