@@ -5,6 +5,8 @@ use std::fs::OpenOptions;
 use std::io::{self, Read, Write};
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
+use tokio::time::sleep;
 
 #[tokio::main]
 async fn main() {
@@ -38,7 +40,7 @@ async fn main() {
             // 尝试在 500 秒内获取锁（这里设置了较长的等待时间，实际测试时可调整）
             if lock.acquire_or_block(500).await {
                 println!("任务 {:?}: 锁已获取！", std::thread::current().id());
-
+                sleep(Duration::from_secs(5)).await;
                 // 使用 spawn_blocking 包装阻塞的文件操作
                 let result = tokio::task::spawn_blocking({
                     let file_path = file_path.clone();
