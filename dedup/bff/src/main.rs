@@ -1,3 +1,4 @@
+mod oss;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::{self, Read, Write};
@@ -31,7 +32,7 @@ async fn main() {
         let file_path = file_path.clone();
         let handle = tokio::spawn(async move {
             let lock_file = "oss://si002558te8h/dclm/dedupe_lockfile";
-            let lock = SimpleOSSLock::new(lock_file).expect("创建锁失败");
+            let lock = oss::SimpleOSSLock::new(lock_file).expect("创建锁失败");
 
             // 尝试在 500 秒内获取锁（这里设置了较长的等待时间，实际测试时可调整）
             if lock.acquire_or_block(500).await {
