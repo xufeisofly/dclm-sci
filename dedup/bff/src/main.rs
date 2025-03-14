@@ -1,20 +1,17 @@
 use oss_rust_sdk::oss::OSS;
+use std::collections::HashMap;
 use std::env;
 use std::net::UdpSocket;
 use std::process;
-use std::thread;
 use std::time::Duration;
+use tokio::time::sleep;
 
 /// 获取指定 bucket 的 OSS 实例，若已存在则直接复用
 pub fn get_bucket(bucket_name: String) -> OSS<'static> {
-    // 否则，新建并插入到缓存中
     let access_id = env::var("OSS_ACCESS_KEY_ID").unwrap();
     let access_secret = env::var("OSS_ACCESS_KEY_SECRET").unwrap();
-    // println!("access_id: {access_id}, access_secret: {access_secret}");
-
     let endpoint = "http://oss-cn-hangzhou-zjy-d01-a.ops.cloud.zhejianglab.com/";
-    let new_oss = OSS::new(access_id, access_secret, endpoint.into(), bucket_name);
-    new_oss
+    OSS::new(access_id, access_secret, endpoint.into(), bucket_name)
 }
 
 /// 从 oss://bucket_name/path 格式的 URL 中解析出 bucket_name 和 path
@@ -74,30 +71,31 @@ impl SimpleOSSLock {
     }
 
     /// 尝试获取锁，成功返回 true，否则返回 false
-    pub fn acquire(&self) -> bool {
+    pub async fn acquire(&self) -> bool {
         let mut headers = HashMap::new();
         headers.insert("x-oss-forbid-overwrite".to_string(), "true".to_string());
         self.bucket
             .put_object(&self.path, &self.lock_value, headers, None)
-            .await;
+            .await
+            .is_ok()
     }
 
     /// 在规定超时时间内不断尝试获取锁。timeout 为 -1 表示无限等待（每次间隔 1 秒）
-    pub fn acquire_or_block(&self, timeout: i32) -> bool {
+    pub async fn acquire_or_block(&self, timeout: i32) -> bool {
         if timeout == -1 {
             loop {
-                if self.acquire() {
+                if self.acquire().await {
                     return true;
                 }
-                thread::sleep(Duration::from_secs(1));
+                sleep(Duration::from_secs(1)).await;
             }
         } else {
             let mut count = timeout;
             while count > 0 {
-                if self.acquire() {
+                if self.acquire().await {
                     return true;
                 }
-                thread::sleep(Duration::from_secs(1));
+                sleep(Duration::from_secs(1)).await;
                 count -= 1;
             }
             false
@@ -105,7 +103,7 @@ impl SimpleOSSLock {
     }
 
     /// 释放锁：先获取锁文件内容，若与当前进程的 lock_value 匹配则删除锁文件
-    pub fn release(&self) -> bool {
+    pub async fn release(&self) -> bool {
         match self
             .bucket
             .get_object(&self.path, None::<HashMap<&str, &str>>, None)
@@ -113,7 +111,7 @@ impl SimpleOSSLock {
         {
             Ok(content) => {
                 if content == self.lock_value {
-                    self.bucket.delete_object(&self.path).await;
+                    self.bucket.delete_object(&self.path).await.is_ok()
                 } else {
                     false
                 }
@@ -123,15 +121,16 @@ impl SimpleOSSLock {
     }
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let lock_file = "oss://si002558te8h/dclm/dedupe_lockfile";
     let lock = SimpleOSSLock::new(lock_file).expect("创建锁失败");
 
     // 尝试在 5 秒内获取锁
-    if lock.acquire_or_block(5) {
+    if lock.acquire_or_block(5).await {
         println!("锁已获取！");
         // 在这里执行你的任务...
-        if lock.release() {
+        if lock.release().await {
             println!("锁已释放！");
         } else {
             println!("释放锁失败");
