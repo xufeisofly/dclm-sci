@@ -140,9 +140,16 @@ async fn main() {
         file.write_all(b"0").expect("写入初始值失败");
     }
 
+    let args: Vec<String> = env::args().collect();
+    let task_count: usize = if args.len() > 1 {
+        args[1].parse().unwrap_or(10)
+    } else {
+        10
+    };
+    println!("启动 {} 个任务", task_count);
+
     // 启动多个任务，模拟多个进程/线程并发
     let mut handles = Vec::new();
-    let task_count = 100; // 启动 100 个并发任务
 
     for _ in 0..task_count {
         let file_path = file_path.clone();
