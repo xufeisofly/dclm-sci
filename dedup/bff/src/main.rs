@@ -66,7 +66,7 @@ enum Commands {
 
         /// 分布式调度时使用，使用 tasks_file 会忽略 inputs，直接从 tasks_file 中读取 inputs
         #[arg(long)]
-        tasks_file: PathBuf,
+        tasks_file: Option<PathBuf>,
 
         /// Output directory where the deduplicated files will end up.
         /// These will have the same basename as the inputs, so it is up to you to ensure no collisions here!
@@ -1897,10 +1897,10 @@ async fn main() -> Result<()> {
             total_shards,
         } => {
             assert!(shard_num < total_shards, "Shard num must be < total shards");
-            let real_inputs: Vec<PathBuf> = if tasks_file.exists() {
+            let real_inputs: Vec<PathBuf> = if tasks_file.is_some() {
                 print!("====3");
                 // 如果 tasks_file 指向的文件存在，就从中读取 inputs
-                get_task_inputs(tasks_file).await.unwrap()
+                get_task_inputs(tasks_file.as_ref().unwrap()).await.unwrap()
             } else {
                 print!("====4");
                 // 否则，使用 inputs 参数
