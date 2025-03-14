@@ -1897,37 +1897,40 @@ async fn main() -> Result<()> {
             total_shards,
         } => {
             assert!(shard_num < total_shards, "Shard num must be < total shards");
-            let real_inputs: Vec<PathBuf> = if tasks_file.is_some() {
-                print!("====3");
-                // 如果 tasks_file 指向的文件存在，就从中读取 inputs
-                get_task_inputs(tasks_file.as_ref().unwrap()).await.unwrap()
-            } else {
-                print!("====4");
-                // 否则，使用 inputs 参数
-                inputs.clone()
-            };
 
-            bff(
-                &real_inputs,
-                output_directory,
-                bloom_filter_file,
-                expected_ngram_count,
-                fp_rate,
-                min_ngram_size,
-                max_ngram_size,
-                substr_seqlen,
-                filtering_threshold,
-                remove_type,
-                num_hashers,
-                no_update_bloom_filter,
-                annotate,
-                threads,
-                no_save_bloom_filter,
-                no_progress_bar,
-                shard_num,
-                total_shards,
-            )
-            .await?;
+            loop {
+                let real_inputs: Vec<PathBuf> = if tasks_file.is_some() {
+                    let temp = get_task_inputs(tasks_file.as_ref().unwrap()).await.unwrap();
+                    if !temp.is_empty() {
+                        break;
+                    }
+                    temp
+                } else {
+                    inputs.clone()
+                };
+
+                bff(
+                    &real_inputs,
+                    output_directory,
+                    bloom_filter_file,
+                    expected_ngram_count,
+                    fp_rate,
+                    min_ngram_size,
+                    max_ngram_size,
+                    substr_seqlen,
+                    filtering_threshold,
+                    remove_type,
+                    num_hashers,
+                    no_update_bloom_filter,
+                    annotate,
+                    threads,
+                    no_save_bloom_filter,
+                    no_progress_bar,
+                    shard_num,
+                    total_shards,
+                )
+                .await?;
+            }
         }
         Commands::Sysreq {
             expected_ngram_count,
