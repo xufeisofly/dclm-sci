@@ -161,7 +161,7 @@ async fn main() {
                         // 读取当前计数器值
                         let mut contents = String::new();
                         {
-                            let mut file = OpenOptions::new().read(true).open(&file_path)?;
+                            let mut file = OpenOptions::new().read(true).open(&*file_path)?;
                             file.read_to_string(&mut contents)?;
                         }
                         let count: i32 = contents.trim().parse().unwrap_or(0);
@@ -171,7 +171,7 @@ async fn main() {
                             let mut file = OpenOptions::new()
                                 .write(true)
                                 .truncate(true)
-                                .open(&file_path)?;
+                                .open(&*file_path)?;
                             file.write_all(format!("{}", count + 1).as_bytes())?;
                         }
                         Ok(())
