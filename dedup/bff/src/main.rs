@@ -142,7 +142,7 @@ async fn main() {
 
     // 启动多个任务，模拟多个进程/线程并发
     let mut handles = Vec::new();
-    let task_count = 10; // 启动 10 个并发任务
+    let task_count = 100; // 启动 100 个并发任务
 
     for _ in 0..task_count {
         let file_path = file_path.clone();
