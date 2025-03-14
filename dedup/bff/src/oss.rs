@@ -122,21 +122,3 @@ impl SimpleOSSLock {
         }
     }
 }
-
-fn main() {
-    let lock_file = "oss://si002558te8h/dclm/dedupe_lockfile";
-    let lock = SimpleOSSLock::new(lock_file).expect("创建锁失败");
-
-    // 尝试在 5 秒内获取锁
-    if lock.acquire_or_block(5) {
-        println!("锁已获取！");
-        // 在这里执行你的任务...
-        if lock.release() {
-            println!("锁已释放！");
-        } else {
-            println!("释放锁失败");
-        }
-    } else {
-        println!("在超时时间内未能获取锁");
-    }
-}
