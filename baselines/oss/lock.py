@@ -21,7 +21,7 @@ def get_worker_key():
     return f"{get_local_ip()}_{os.getpid()}"
         
 
-DEFAULT_LOCK_FILE = "oss://si002558te8h/dclm/lockfile"
+DEFAULT_LOCK_FILE = "oss://si002558te8h/dclm/process_lockfile"
         
 class SimpleOSSLock:
     def __init__(self, lock_file: str) -> None:
