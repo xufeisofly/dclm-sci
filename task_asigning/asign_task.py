@@ -27,7 +27,7 @@ for all the ray_process.py to accept.
 """
 
 class TaskItem:
-    def __init__(self, shard_dir: str, file_range: List[int], worker=None) -> None:
+    def __init__(self, shard_dir, file_range: List[int], worker=None) -> None:
         self._shard_dir = shard_dir
         self._file_range = file_range
         self._worker = worker
@@ -47,7 +47,7 @@ def create_task_items(shard_dirs: List[str], mode: str) -> List[dict]:
     for shard_dir in shard_dirs:
         if mode == 'dedup':
             # 对于 dedup 任务，CC-MAIN 目录下还有一层 processed_data
-            shard_dir = os.path.join(shard_dir, 'processed_data')
+            shard_dir = [os.path.join(shard_dir, 'processed_data')]
         tasks.append(TaskItem(shard_dir, [0, -1]).to_dict())
     return tasks
 

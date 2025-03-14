@@ -20,7 +20,7 @@ use std::hash::{BuildHasher, Hash, Hasher};
 use std::io;
 use std::io::{BufRead, BufReader, BufWriter, Cursor, Write};
 use std::mem::size_of;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::available_parallelism;
@@ -61,8 +61,12 @@ enum Commands {
     #[clap(arg_required_else_help = true)]
     Bff {
         /// (List of) directories or files that are jsonl.gz files
-        #[arg(required = true, long)]
+        #[arg(required = false, long)]
         inputs: Vec<PathBuf>,
+
+        /// 分布式调度时使用，使用 tasks_file 会忽略 inputs，直接从 tasks_file 中读取 inputs
+        #[arg(long)]
+        tasks_file: PathBuf,
 
         /// Output directory where the deduplicated files will end up.
         /// These will have the same basename as the inputs, so it is up to you to ensure no collisions here!
@@ -1804,6 +1808,61 @@ fn compress_data(data: Vec<u8>, filename: &PathBuf) -> Vec<u8> {
     output_data
 }
 
+async fn get_task_inputs(tasks_file: &PathBuf) -> Result<Vec<PathBuf>, anyhow::Error> {
+    let mut ret: Vec<PathBuf> = Vec::new();
+    let lock_file = "oss://si002558te8h/dclm/dedupe_lockfile";
+    let lock = oss::SimpleOSSLock::new(lock_file).expect("创建锁失败");
+
+    if lock.acquire_or_block(3600).await {
+        let reader = get_reader_from_oss(tasks_file, None).await?;
+        let mut data: serde_json::Value = serde_json::from_reader(reader)?;
+
+        if let Some(tasks_array) = data["tasks"].as_array_mut() {
+            for task in tasks_array.iter_mut() {
+                // 克隆出 shard_dir 数组和 worker 字段，结束对 task 的不可变借用
+                let shard_dirs_opt = task.get("shard_dir").and_then(|v| v.as_array()).cloned();
+                let worker_opt = task.get("worker").cloned();
+
+                if let (Some(shard_dirs), Some(worker)) = (shard_dirs_opt, worker_opt) {
+                    if worker.is_null() {
+                        // 修改 worker 字段
+                        task["worker"] = serde_json::Value::String("deduping".to_string());
+                        // 遍历克隆出的 shard_dirs，将每个字符串转换为 PathBuf 并存入 ret
+                        for shard_value in shard_dirs {
+                            if let Some(shard_str) = shard_value.as_str() {
+                                ret.push(PathBuf::from(shard_str));
+                            }
+                        }
+                        // 一旦满足条件，退出循环
+                        break;
+                    }
+                }
+            }
+        } else {
+            eprintln!("tasks 字段不是一个数组！");
+        }
+
+        // 将更新后的 JSON 写回 OSS
+        let (output_bucket, output_key) = split_oss_path(tasks_file);
+        let client = oss::get_bucket(output_bucket);
+        let mut headers = std::collections::HashMap::new();
+        headers.insert("content-type".to_string(), "text/plain".to_string());
+        let new_data = serde_json::to_vec(&data)?;
+        let _ = client
+            .put_object(new_data.as_slice(), output_key.clone(), headers, None)
+            .await;
+
+        if lock.release().await {
+            println!("锁已释放");
+        } else {
+            println!("释放锁失败");
+        }
+    } else {
+        println!("在超时时间内未能获取锁");
+    }
+    Ok(ret)
+}
+
 /*=============================================================
 =                       Main Function                         =
 =============================================================*/
@@ -1815,6 +1874,7 @@ async fn main() -> Result<()> {
     match &args.command {
         Commands::Bff {
             inputs,
+            tasks_file,
             output_directory,
             bloom_filter_file,
             expected_ngram_count,
@@ -1834,8 +1894,16 @@ async fn main() -> Result<()> {
             total_shards,
         } => {
             assert!(shard_num < total_shards, "Shard num must be < total shards");
+            let real_inputs: Vec<PathBuf> = if tasks_file.exists() {
+                // 如果 tasks_file 指向的文件存在，就从中读取 inputs
+                get_task_inputs(tasks_file).await.unwrap()
+            } else {
+                // 否则，使用 inputs 参数
+                inputs.clone()
+            };
+
             bff(
-                inputs,
+                &real_inputs,
                 output_directory,
                 bloom_filter_file,
                 expected_ngram_count,
