@@ -227,14 +227,17 @@ def process_task_item(task_item: TaskItem|None, with_init=True):
     
     def get_output_dir(output, shard_name):
         if shard_name == '':
-            return output
+            return os.path.join(output, args.readable_name)
         # output dir: oss://si002558te8h/dclm/output/sci_test/CC-MAIN-2014-11/
-        return os.path.join(args.output_dir, args.readable_name, shard_name)    
+        return os.path.join(output, args.readable_name, shard_name)    
     
     output_dir = get_output_dir(args.output_dir, shard_name)
     source_name = args.source_name
-    config_name = os.path.basename(config_path).split(".")[0]
-    base_output_path = os.path.join(output_dir, config_name)
+    
+    # base output path 去掉 config_name，使用自定义的 readable name 去区分不同的 pipeline
+    # config_name = os.path.basename(config_path).split(".")[0]
+    # base_output_path = os.path.join(output_dir, config_name)
+    base_output_path = output_dir
 
     # Collect the global stats file, which is used to record / resume a data processing pipeline
     global_stats_path = os.path.join(base_output_path, "global_stats.jsonl")
