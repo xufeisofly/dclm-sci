@@ -1,5 +1,4 @@
 use oss_rust_sdk::async_object::*;
-use oss_rust_sdk::errors::*;
 use oss_rust_sdk::oss::OSS;
 use std::collections::HashMap;
 use std::env;
@@ -62,7 +61,7 @@ impl SimpleOSSLock {
         let bucket = get_bucket(bucket_name);
         let local_ip = get_local_ip();
         let process_id = process::id();
-        let lock_value = format!("locked_{}_{}", local_ip, process_id);
+        let lock_value: &[u8] = format!("locked_{}_{}", local_ip, process_id);
         Ok(SimpleOSSLock {
             bucket,
             path,
@@ -77,7 +76,7 @@ impl SimpleOSSLock {
         let mut headers = HashMap::new();
         headers.insert("x-oss-forbid-overwrite".to_string(), "true".to_string());
         self.bucket
-            .put_object(&self.path, &self.lock_value, headers, None)
+            .put_object(&self.lock_value, &self.path, headers, None)
             .await
             .is_ok()
     }
