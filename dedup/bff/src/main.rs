@@ -1,3 +1,5 @@
+use oss_rust_sdk::async_object::*;
+use oss_rust_sdk::errors::*;
 use oss_rust_sdk::oss::OSS;
 use std::collections::HashMap;
 use std::env;
