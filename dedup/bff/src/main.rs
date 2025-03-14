@@ -1898,9 +1898,11 @@ async fn main() -> Result<()> {
         } => {
             assert!(shard_num < total_shards, "Shard num must be < total shards");
             let real_inputs: Vec<PathBuf> = if tasks_file.exists() {
+                print!("====3");
                 // 如果 tasks_file 指向的文件存在，就从中读取 inputs
                 get_task_inputs(tasks_file).await.unwrap()
             } else {
+                print!("====4");
                 // 否则，使用 inputs 参数
                 inputs.clone()
             };
